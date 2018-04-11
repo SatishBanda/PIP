@@ -52,8 +52,8 @@ $config = [
         ],
         'sendGrid' => [
             'class' => 'bryglen\sendgrid\Mailer',
-            'username' => 'samknara',
-            'password' => 'SkyTech2017#@#',
+            'username' => 'xxxx',
+            'password' => 'xxxxx',
             //'viewPath' => '@app/views/mail', // your view path here
         ],
         'log' => [
