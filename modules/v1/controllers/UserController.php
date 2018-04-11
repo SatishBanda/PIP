@@ -2,36 +2,22 @@
 
 namespace app\modules\v1\controllers;
 
-use app\components\FormGeneration;
 use app\filters\auth\HttpBearerAuth;
-use app\models\UserEditForm;
 use Yii;
-
-use yii\data\ActiveDataProvider;
 use yii\filters\AccessControl;
 use yii\filters\auth\CompositeAuth;
 use yii\helpers\Url;
 use yii\rest\ActiveController;
-
 use yii\web\HttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\ServerErrorHttpException;
-
 use app\models\PasswordResetForm;
 use app\models\User;
-use app\models\SignupForm;
 use app\models\LoginForm;
-use app\models\SignupConfirmForm;
 use app\models\PasswordResetRequestForm;
 use app\models\PasswordResetTokenVerificationForm;
 use app\components\AccessRule;
 use app\models\ChangePasswordForm;
-use yii\widgets\ActiveForm;
-use app\components\ResourceComponent;
-use app\models\AdminUserDetails;
-use app\models\Clients;
-use app\models\AdminUserPermissions;
-use app\models\CompanyUsers;
 
 class UserController extends ActiveController
 {
@@ -105,7 +91,7 @@ class UserController extends ActiveController
                 [
                     'allow' => true,
                     'actions' => ['index', 'view', 'create', 'update', 'delete'],
-                    'roles' => [USER::ROLE_SUPER_ADMIN, USER::ROLE_ADMIN],
+                    //'roles' => [USER::ROLE_SUPER_ADMIN],
                 ]
             ],
         ];
@@ -116,8 +102,6 @@ class UserController extends ActiveController
 
     public function actionLogin()
     {
-
-        // Yii::$app->eFile->generateXml(1214);
         $model = new LoginForm();
 
         if ($model->load(Yii::$app->request->post()) && $model->login()) {

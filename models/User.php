@@ -35,9 +35,8 @@ use yii\web\Request as WebRequest;
 class User extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface {
 
     const ROLE_SUPER_ADMIN = 1;
-    const ROLE_ADMIN = 2;
-    const ROLE_CLIENT_USER = 3;
-    const ROLE_COMPANY_USER = 4;
+    const ROLE_CANDIDATE = 2;
+    const ROLE_STAFF_USER = 3;
     const STATUS_ACTIVE = 1;
     const STATUS_INACTIVE = 0;
 
@@ -58,7 +57,7 @@ class User extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface {
         return [
             [['username', 'mobile', 'user_type', 'auth_key'], 'required'],
             [['username'], 'unique', 'message' => 'A user with this email already exists, please enter a different email id', 'targetClass' => self::className(), 'filter' => ['=', 'is_delete', 0]],
-            [['user_type', 'is_active', 'is_verified', 'is_delete', 'created_by', 'updated_by'], 'integer'],
+            [['user_type', 'is_active', 'is_verified', 'is_delete', 'created_by', 'updated_by','user_id'], 'integer'],
             [['password_requested_at', 'last_logged_at', 'created_at', 'updated_at'], 'safe'],
           //  ['last_login_ip', 'ip'],
             ['is_active', 'validateStatus', 'on' => 'update'],
@@ -265,7 +264,8 @@ class User extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface {
      * @inheritdoc
      */
     public function getId() {
-        return $this->getPrimaryKey();
+       // return $this->getPrimaryKey();
+        return $this->user_id;
     }
 
     /**
