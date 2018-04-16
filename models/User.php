@@ -58,7 +58,7 @@ class User extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface {
             [['username', 'mobile', 'user_type', 'auth_key'], 'required'],
             [['username'], 'unique', 'message' => 'A user with this email already exists, please enter a different email id', 'targetClass' => self::className(), 'filter' => ['=', 'is_delete', 0]],
             [['user_type', 'is_active', 'is_verified', 'is_delete', 'created_by', 'updated_by','user_id'], 'integer'],
-            [['password_requested_at', 'last_logged_at', 'created_at', 'updated_at'], 'safe'],
+            [['first_name','last_name','password_requested_at', 'last_logged_at', 'created_at', 'updated_at'], 'safe'],
           //  ['last_login_ip', 'ip'],
             ['is_active', 'validateStatus', 'on' => 'update'],
             [['username', 'auth_key', 'password', 'mobile', 'password_reset_token'], 'string', 'max' => 255],
@@ -607,4 +607,8 @@ class User extends \yii\db\ActiveRecord implements \yii\web\IdentityInterface {
         return $name;
     }
 
+    public function getEvaluationHistory()
+    {
+        return $this->hasMany(CandidateEvaluations::className(), ['user_id' => 'user_id']);
+    }
 }
