@@ -196,7 +196,7 @@ class MailComponent extends Component
 			    </tbody>
 			</table>', $body);
 
-            $status  = ResourceComponent::sendMail($brand['support_email'], $user->username, $set_pwd_mail_template->subject, $body);
+            $status  = ResourceComponent::sendMail($user->username, $set_pwd_mail_template->subject, $body);
         }
         return $status;
     }

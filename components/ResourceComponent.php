@@ -18,7 +18,7 @@ class ResourceComponent extends Component
     /**
      * Sample: ResourceComponent::sendMail('fromMail@example.com', 'toMail@example.com', 'example subject', 'example message');
      */
-    public static function sendMail($fromMail=null, $toMail, $subject, $body)
+    public static function sendMail($toMail, $subject, $body, $fromMail = null)
     {
         try {
             $sendGrid = Yii::$app->sendGrid;
@@ -30,13 +30,13 @@ class ResourceComponent extends Component
 
             $message = $sendGrid->compose();
             $status = $message->setFrom($fromMail)
-                          ->setTo($toMail)
-                          ->setReplyTo($fromMail)
-                          ->setSubject($subject)
-                          ->setHtmlBody($body)
-                          ->send($sendGrid);
+                ->setTo($toMail)
+                ->setReplyTo($fromMail)
+                ->setSubject($subject)
+                ->setHtmlBody($body)
+                ->send($sendGrid);
             if (!$status) {
-                $error = "Error in mail triggering ".implode(',', array_values($sendGrid->getErrors()));
+                $error = "Error in mail triggering " . implode(',', array_values($sendGrid->getErrors()));
                 throw new Exception(Json::encode($error), 1);
             }
             return $status;
@@ -48,7 +48,7 @@ class ResourceComponent extends Component
     /**
      * Sample: ResourceComponent::sendMailWithTemplate('fromMail@example.com', 'toMail@example.com', 'example subject', 'sample-html', $params);
      */
-    public static function sendMailWithTemplate($fromMail=null, $toMail, $subject, $template, $params=null)
+    public static function sendMailWithTemplate($fromMail = null, $toMail, $subject, $template, $params = null)
     {
         $sendGrid = Yii::$app->sendGrid;
         $status = '';
@@ -58,14 +58,14 @@ class ResourceComponent extends Component
         }
 
         if (empty($params)) {
-            $params= [];
+            $params = [];
         }
 
         $message = $sendGrid->compose($template, $params);
         $status = $message->setFrom($fromMail)
-        ->setTo($toMail)
-        ->setSubject($subject)
-        ->send($sendGrid);
+            ->setTo($toMail)
+            ->setSubject($subject)
+            ->send($sendGrid);
 
         return $status;
     }
@@ -73,7 +73,7 @@ class ResourceComponent extends Component
     /**
      * Sample: ResourceComponent::sendMailWithTemplateAndAttachment('fromMail@example.com', 'toMail@example.com', 'example subject', 'sample-html', $params, $attachment);
      */
-    public static function sendMailWithTemplateAndAttachment($fromMail=null, $toMail, $subject, $template, $params=null, $attachment)
+    public static function sendMailWithTemplateAndAttachment($fromMail = null, $toMail, $subject, $template, $params = null, $attachment)
     {
         $sendGrid = Yii::$app->sendGrid;
         $status = '';
@@ -83,15 +83,15 @@ class ResourceComponent extends Component
         }
 
         if (empty($params)) {
-            $params= [];
+            $params = [];
         }
 
         $message = $sendGrid->compose($template, $params);
         $status = $message->setFrom($fromMail)
-        ->setTo($toMail)
-        ->setSubject($subject)
-        ->attach($attachmentPath)
-        ->send($sendGrid);
+            ->setTo($toMail)
+            ->setSubject($subject)
+            ->attach($attachmentPath)
+            ->send($sendGrid);
 
         return $status;
     }
@@ -99,7 +99,7 @@ class ResourceComponent extends Component
     /**
      * Sample: ResourceComponent::sendMailWithTemplateAndAttachments('fromMail@example.com', 'toMail@example.com', 'example subject', 'sample-html', $params, $attachments);
      */
-    public static function sendMailWithTemplateAndAttachments($fromMail=null, $toMail, $subject, $template, $params=null, $attachments)
+    public static function sendMailWithTemplateAndAttachments($fromMail = null, $toMail, $subject, $template, $params = null, $attachments)
     {
         $sendGrid = Yii::$app->sendGrid;
         $status = '';
@@ -109,15 +109,15 @@ class ResourceComponent extends Component
         }
 
         if (empty($params)) {
-            $params= [];
+            $params = [];
         }
 
         $message = $sendGrid->compose($template, $params)
-        ->setFrom($fromMail)
-        ->setTo($toMail)
-        ->setSubject($subject);
+            ->setFrom($fromMail)
+            ->setTo($toMail)
+            ->setSubject($subject);
 
-        foreach ($attachments as $key=>$attachment) {
+        foreach ($attachments as $key => $attachment) {
             $message = $message->attach($attachment);
         }
 

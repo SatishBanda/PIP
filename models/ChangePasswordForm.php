@@ -10,7 +10,7 @@ use app\models\User;
 class ChangePasswordForm extends Model
 {
     public $username;
-    public $currentPassword;
+    public $current_password;
     public $newPassword;
     public $retypePassword;
 
@@ -33,9 +33,9 @@ class ChangePasswordForm extends Model
                 'message' => 'There is no user with such email.'
             ],
         		
-            ['currentPassword', 'required'],
-            ['currentPassword', 'string'],
-        //	['currentPassword', 'passwordCriteria'],
+            ['current_password', 'required'],
+            ['current_password', 'string'],
+        //	['current_password', 'passwordCriteria'],
 
         	['newPassword', 'required'],
         	['newPassword', 'string', 'min' => 6],
@@ -66,8 +66,8 @@ class ChangePasswordForm extends Model
     {
     		$user = $this->getUser();
     	
-    		if (!$user || !$user->validatePassword($this->currentPassword)) {
-    			$this->addError('currentPassword', 'Incorrect password.');
+    		if (!$user || !$user->validatePassword($this->current_password)) {
+    			$this->addError('current_password', 'Incorrect password.');
     		}else {
     			return true;
     		}
