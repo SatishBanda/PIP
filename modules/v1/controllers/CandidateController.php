@@ -58,6 +58,7 @@ class CandidateController extends ActiveController
                 'delete' => ['delete'],
                 'login' => ['post'],
                 'delete-candidate' => ['delete'],
+                'change-candidate-status' => ['put'],
             ],
         ];
 
@@ -87,11 +88,11 @@ class CandidateController extends ActiveController
             'ruleConfig' => [
                 'class' => AccessRule::className(),
             ],
-            'only' => ['index', 'view', 'create', 'update', 'delete', 'delete-candidate'], //only be applied to
+            'only' => ['index', 'view', 'create', 'update', 'delete', 'delete-candidate','change-candidate-status'], //only be applied to
             'rules' => [
                 [
                     'allow' => true,
-                    'actions' => ['index', 'view', 'create', 'update', 'delete', 'delete-candidate'],
+                    'actions' => ['index', 'view', 'create', 'update', 'delete', 'delete-candidate','change-candidate-status'],
                     // 'roles' => [USER::ROLE_SUPER_ADMIN, USER::ROLE_ADMIN],
                 ]
             ],
@@ -126,6 +127,7 @@ class CandidateController extends ActiveController
                 "username" => $userModel->username,
                 "mobile" => $userModel->mobile,
             ];
+            $result['status'] = true;
             $transaction->commit();
             $result['message'] = "Candidate Created successfully";
             return $result;
@@ -171,7 +173,7 @@ class CandidateController extends ActiveController
         $request = Yii::$app->request;
         try {
 
-            $candidates = User::find()->joinWith(['evaluationHistory'])->where(['user_type' => 2,'is_delete'=>0])->asArray()->all();
+            $candidates = User::find()->joinWith(['evaluationHistory'])->where(['user_type' => 2, 'is_delete' => 0])->asArray()->all();
             $outPut = [];
             foreach ($candidates as $candidate) {
                 $data = [];
@@ -201,11 +203,11 @@ class CandidateController extends ActiveController
     {
         $response = Yii::$app->response;
         $request = Yii::$app->request;
-        $return = [];;
+        $return = [];
         try {
             $return['status'] = false;
             $userModel = User::findOne($id);
-            if($userModel){
+            if ($userModel) {
                 $userModel->is_delete = 1;
                 $userModel->save();
                 $return['status'] = true;
@@ -215,5 +217,27 @@ class CandidateController extends ActiveController
             $response->setStatusCode(422);
             throw new HttpException(422, $exception->getMessage());
         }
+    }
+
+    /**
+     * @param $id
+     */
+    public function actionChangeCandidateStatus($id)
+    {
+        $response = Yii::$app->response;
+        $request = Yii::$app->request;
+        $return = [];
+        try {
+            $userModel = User::findOne($id);
+            if ($userModel) {
+                $userModel->is_active = ($userModel->is_active) ? 0 : 1;
+                $userModel->save();
+                $return['status'] = true;
+            }
+        } catch (Exception $exception) {
+            $response->setStatusCode(422);
+            throw new HttpException(422, $exception->getMessage());
+        }
+
     }
 }

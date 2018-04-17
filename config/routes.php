@@ -42,6 +42,8 @@ return [
                 'OPTIONS get-candidates-list' => 'options',
                 'DELETE delete-candidate/{id}' => 'delete-candidate',
                 'OPTIONS delete-candidate/{id}' => 'options',
+                'PUT change-candidate-status/{id}' => 'change-candidate-status',
+                'OPTIONS change-candidate-status/{id}' => 'options',
             ]
         ],
         [
@@ -57,6 +59,19 @@ return [
                 'OPTIONS get-settings' => 'options',
                 'POST save-settings' => 'save-settings',
                 'OPTIONS save-settings' => 'options',
+            ]
+        ],
+        [
+            'class' => 'yii\rest\UrlRule',
+            'controller' => 'v1/evaluation',
+            'pluralize' => false,
+            'tokens' => [
+                '{id}' => '<id:\d+>'
+            ],
+            'extraPatterns' => [
+                'OPTIONS {id}' => 'options',
+                'POST get-candidate-evaluation' => 'get-candidate-evaluation',
+                'OPTIONS get-candidate-evaluation' => 'options',
             ]
         ],
     ]
