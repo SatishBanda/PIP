@@ -121,6 +121,7 @@ class EvaluationController extends ActiveController
                         ${'subcategories_' . $categoryId} = ArrayHelper::getColumn($items,function($element){
                             $array['id'] = $element['question_id'];
                             $array['questionText'] = $element['question_text'];
+                            $array['questionValue'] = rand(1,5);
                             return $array;
                         });
                         $finalArray['subcategories_' . $categoryId] = ${'subcategories_' . $categoryId};
