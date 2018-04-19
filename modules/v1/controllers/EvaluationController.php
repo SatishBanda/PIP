@@ -118,10 +118,15 @@ class EvaluationController extends ActiveController
                 $finalArray = [];
                 foreach ($categoryBasedGroups as $category) {
                     foreach ( $category as $key =>$items) {
-                        ${'subcategories_' . $categoryId} = ArrayHelper::getColumn($items,function($element){
+                        ${'subcategories_' . $categoryId} = ArrayHelper::getColumn($items,function($element) use($categoryId){
                             $array['id'] = $element['question_id'];
                             $array['questionText'] = $element['question_text'];
-                            $array['questionValue'] = rand(1,5);
+
+                            if(in_array($categoryId,[10,11,12])){
+                                $array['questionValue'] = rand(1,3);
+                            }else{
+                                $array['questionValue'] = rand(1,5);
+                            }
                             return $array;
                         });
                         $finalArray['subcategories_' . $categoryId] = ${'subcategories_' . $categoryId};
