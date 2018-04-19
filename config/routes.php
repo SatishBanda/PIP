@@ -72,6 +72,8 @@ return [
                 'OPTIONS {id}' => 'options',
                 'POST get-candidate-evaluation' => 'get-candidate-evaluation',
                 'OPTIONS get-candidate-evaluation' => 'options',
+                'POST save-evaluations' => 'save-evaluations',
+                'OPTIONS save-evaluations' => 'options',
             ]
         ],
     ]

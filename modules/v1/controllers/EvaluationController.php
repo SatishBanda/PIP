@@ -10,7 +10,10 @@ namespace app\modules\v1\controllers;
 
 use app\components\AccessRule;
 use app\filters\auth\HttpBearerAuth;
+use app\models\CandidateEvaluations;
+use app\models\CandidateQuestionsRating;
 use app\models\EvaluationQuestions;
+use Mpdf\Tag\A;
 use yii\base\Exception;
 use yii\filters\AccessControl;
 use yii\filters\auth\CompositeAuth;
@@ -58,6 +61,7 @@ class EvaluationController extends ActiveController
                 'delete' => ['delete'],
                 'login' => ['post'],
                 'get-candidate-evaluation' => ['post'],
+                'save-evaluations' => ['post'],
             ],
         ];
 
@@ -91,7 +95,7 @@ class EvaluationController extends ActiveController
             'rules' => [
                 [
                     'allow' => true,
-                    'actions' => ['index', 'view', 'create', 'update', 'delete', 'get-candidate-evaluation'],
+                    'actions' => ['index', 'view', 'create', 'update', 'delete', 'get-candidate-evaluation', 'save-evaluations'],
                     // 'roles' => [USER::ROLE_SUPER_ADMIN, USER::ROLE_ADMIN],
                 ]
             ],
@@ -111,30 +115,67 @@ class EvaluationController extends ActiveController
             $postParams = $request->getBodyParams();
             $candidateId = $postParams['candidateId'];
             $evaluationType = $postParams['evaluationType'];
-            if ($evaluationType == 'start') {
-                $questions = EvaluationQuestions::find()->asArray()->all();
-                $categoryBasedGroups = ArrayHelper::index($questions, null, ['category_id', 'sub_category_id']);
-                $categoryId = 1;
-                $finalArray = [];
-                foreach ($categoryBasedGroups as $category) {
-                    foreach ( $category as $key =>$items) {
-                        ${'subcategories_' . $categoryId} = ArrayHelper::getColumn($items,function($element) use($categoryId){
-                            $array['id'] = $element['question_id'];
-                            $array['questionText'] = $element['question_text'];
-
-                            if(in_array($categoryId,[10,11,12])){
-                                $array['questionValue'] = rand(1,3);
-                            }else{
-                                $array['questionValue'] = rand(1,5);
-                            }
-                            return $array;
-                        });
-                        $finalArray['subcategories_' . $categoryId] = ${'subcategories_' . $categoryId};
-                        $categoryId++;
-                    }
+            $evaluation = CandidateEvaluations::find()->joinWith(['questions'])->where([CandidateEvaluations::tableName() . '.user_id' => $candidateId, 'status' => 1])->asArray()->one();
+            $questionsRating = [];
+            if ($evaluation) {
+                $questions = $evaluation['questions'];
+                $questionsRating = ArrayHelper::map($questions, 'question_id', 'rating_value');
+            }
+            // if ($evaluationType == 'start') {
+            $questions = EvaluationQuestions::find()->asArray()->all();
+            $categoryBasedGroups = ArrayHelper::index($questions, null, ['category_id', 'sub_category_id']);
+            $categoryId = 1;
+            $finalArray = [];
+            foreach ($categoryBasedGroups as $category) {
+                foreach ($category as $key => $items) {
+                    ${'subcategories_' . $categoryId} = ArrayHelper::getColumn($items, function ($element) use ($categoryId, $questionsRating) {
+                        $array['id'] = $element['question_id'];
+                        $array['questionText'] = $element['question_text'];
+                        $array['questionValue'] = isset($questionsRating[$element['question_id']]) ? $questionsRating[$element['question_id']] : 0;
+                        return $array;
+                    });
+                    $finalArray['subcategories_' . $categoryId] = ${'subcategories_' . $categoryId};
+                    $categoryId++;
                 }
-                $result['questions'] = $finalArray;
-                $result['status'] = true;
+            }
+            $result['questions'] = $finalArray;
+            $result['status'] = true;
+            return $result;
+            // }
+        } catch (Exception $exception) {
+            $response->setStatusCode(422);
+            throw new HttpException(422, $exception->getMessage());
+        }
+    }
+
+    /**
+     * @return mixed
+     * @throws HttpException
+     */
+    public function actionSaveEvaluations()
+    {
+        $response = Yii::$app->response;
+        $request = Yii::$app->request;
+        try {
+            $postParams = $request->getBodyParams();
+            $candidateId = $postParams['candidateId'];
+            $questions = $postParams['questions'];
+            $step = $postParams['step'];
+            $submitType = isset($postParams['type']) ? $postParams['type'] : '';
+            $result = [];
+            if ($questions) {
+                $transaction = Yii::$app->db->beginTransaction();
+                try {
+                    $evaluationId = $this->saveEvaluationMain($candidateId, $step);
+                    $this->saveEvaluationQuestions($candidateId, $evaluationId, $questions, $step);
+                    $transaction->commit();
+                    $result['status'] = true;
+                } catch (Exception $e) {
+                    $transaction->rollBack();
+                    $result['status'] = false;
+                    $result['message'] = $e->getMessage();
+                }
+                $response->setStatusCode(200);
                 return $result;
             }
         } catch (Exception $exception) {
@@ -143,4 +184,39 @@ class EvaluationController extends ActiveController
         }
     }
 
+    /**
+     * @param $candidateId
+     */
+    public function saveEvaluationMain($candidateId, $step)
+    {
+        $evaluation = CandidateEvaluations::find()->where(['user_id' => $candidateId, 'status' => 1])->one();
+        if (!$evaluation) {
+            $evaluation = new CandidateEvaluations();
+            $evaluation->user_id = $candidateId;
+        }
+        $evaluation->status = $step == 4 ? 2 : 1;
+        $evaluation->evaluator_id = Yii::$app->user->identity->id;
+        $evaluation->save();
+        return $evaluation->evaluation_id;
+    }
+
+    /**
+     * @param $evaluationId
+     * @param $questions
+     * @param $step
+     */
+    public function saveEvaluationQuestions($candidateId, $evaluationId, $questions, $step)
+    {
+        $questionIds = ArrayHelper::getColumn($questions, 'id');
+
+        CandidateQuestionsRating::deleteAll(['user_id' => $candidateId, 'evaluation_id' => $evaluationId, 'question_id' => $questionIds]);
+        $rows = [];
+        $date = date('Y-m-d H:i:s');
+        $userId = Yii::$app->user->identity->id;
+        foreach ($questions as $question) {
+            $rows[] = [$candidateId, $evaluationId, $question['id'], $question['questionValue'], $date, $userId, $date, $userId];
+        }
+        $columns = ['user_id', 'evaluation_id', 'question_id', 'rating_value', 'created_at', 'created_by', 'updated_at', 'updated_by'];
+        Yii::$app->db->createCommand()->batchInsert(CandidateQuestionsRating::tableName(), $columns, $rows)->execute();
+    }
 }
