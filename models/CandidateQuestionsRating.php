@@ -4,12 +4,33 @@ namespace app\models;
 
 use Yii;
 
-class CandidateEvaluations extends \yii\db\ActiveRecord
+/**
+ * This is the model class for table "{{%error_master}}".
+ *
+ * @property integer $error_master_id
+ * @property integer $module
+ * @property string $element_name
+ * @property string $error_code
+ * @property string $validation
+ * @property string $error_message
+ * @property string $created_at
+ * @property integer $created_by
+ * @property string $updated_at
+ * @property integer $updated_by
+ *
+ * @property User $createdBy
+ * @property User $updatedBy
+ */
+class CandidateQuestionsRating extends \yii\db\ActiveRecord
 {
+    /**
+     * @inheritdoc
+     */
     public static function tableName()
     {
-        return '{{%candidate_evaluation}}';
+        return '{{%candidate_questions_rating}}';
     }
+
 
     /** @inheritdoc */
     public function behaviors()
@@ -46,14 +67,5 @@ class CandidateEvaluations extends \yii\db\ActiveRecord
     public function getUpdatedBy()
     {
         return $this->hasOne(User::className(), ['user_id' => 'updated_by']);
-    }
-
-
-    /**
-     * @return \yii\db\ActiveQuery
-     */
-    public function getQuestions()
-    {
-        return $this->hasMany(CandidateQuestionsRating::className(), ['evaluation_id' => 'evaluation_id']);
     }
 }

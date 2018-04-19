@@ -11,10 +11,12 @@ namespace app\modules\v1\controllers;
 use app\components\AccessRule;
 use app\components\MailComponent;
 use app\filters\auth\HttpBearerAuth;
+use app\models\CandidateEvaluations;
 use app\models\User;
 use yii\base\Exception;
 use yii\filters\AccessControl;
 use yii\filters\auth\CompositeAuth;
+use yii\helpers\ArrayHelper;
 use yii\helpers\Json;
 use yii\rest\ActiveController;
 use Yii;
@@ -88,11 +90,11 @@ class CandidateController extends ActiveController
             'ruleConfig' => [
                 'class' => AccessRule::className(),
             ],
-            'only' => ['index', 'view', 'create', 'update', 'delete', 'delete-candidate','change-candidate-status'], //only be applied to
+            'only' => ['index', 'view', 'create', 'update', 'delete', 'delete-candidate', 'change-candidate-status'], //only be applied to
             'rules' => [
                 [
                     'allow' => true,
-                    'actions' => ['index', 'view', 'create', 'update', 'delete', 'delete-candidate','change-candidate-status'],
+                    'actions' => ['index', 'view', 'create', 'update', 'delete', 'delete-candidate', 'change-candidate-status'],
                     // 'roles' => [USER::ROLE_SUPER_ADMIN, USER::ROLE_ADMIN],
                 ]
             ],
@@ -173,8 +175,12 @@ class CandidateController extends ActiveController
         $request = Yii::$app->request;
         try {
 
-            $candidates = User::find()->joinWith(['evaluationHistory'])->where(['user_type' => 2, 'is_delete' => 0])->asArray()->all();
+            $candidates = User::find()->joinWith(['evaluationHistory'])->where([User::tableName() . '.user_type' => 2, User::tableName() . '.is_delete' => 0])->asArray()->all();
             $outPut = [];
+            $evaluations = CandidateEvaluations::find()->where(['status' => 1])->asArray()->all();
+            $evaluations = ArrayHelper::index($evaluations, 'user_id');
+            $users = User::find()->asArray()->all();
+            $users = ArrayHelper::index($users, 'user_id');
             foreach ($candidates as $candidate) {
                 $data = [];
                 $data['user_id'] = $candidate['user_id'];
@@ -183,8 +189,19 @@ class CandidateController extends ActiveController
                 $data['last_name'] = $candidate['last_name'];
                 $data['username'] = $candidate['username'];
                 $data['mobile'] = $candidate['mobile'];
-                $data['evaluationStatus'] = 1;
+                $data['evaluationStatus'] = isset($evaluations[$candidate['user_id']]) ? 1 : 2;
+
                 $data['evaluationHistory'] = $candidate['evaluationHistory'];
+                $evHis = [];
+                foreach ($data['evaluationHistory'] as $history) {
+                    $user = isset($users[$history['evaluator_id']]) ? $users[$history['evaluator_id']] : [];
+                    $history['evaluatorName'] = '';
+                    if ($user) {
+                        $history['evaluatorName'] = $user['first_name'] . ' ' . $user['last_name'];
+                    }
+                    $evHis[] = $history;
+                }
+                $data['evaluationHistory'] = $evHis;
                 $data['evaluationHistoryCount'] = count($candidate['evaluationHistory']);
                 $data['status'] = $candidate['is_active'];
                 $outPut[] = $data;
