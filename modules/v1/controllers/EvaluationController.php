@@ -166,10 +166,22 @@ class EvaluationController extends ActiveController
             if ($questions) {
                 $transaction = Yii::$app->db->beginTransaction();
                 try {
-                    $evaluationId = $this->saveEvaluationMain($candidateId, $step);
+
+                    $evaluationId = $this->saveEvaluationMain($candidateId, $step, $submitType);
                     $this->saveEvaluationQuestions($candidateId, $evaluationId, $questions, $step);
                     $transaction->commit();
-                    $result['status'] = true;
+                    if (in_array($submitType, ['finish', 'email'])) {
+                        $validationStatusResponse = $this->validateEvaluationQuestion($candidateId, $evaluationId);
+                        if ($validationStatusResponse['status']) {
+                            $this->saveEvaluationMain($candidateId, $step, $submitType, true);
+                        } else {
+                            $result['validationFailed'] = true;
+                            $result['failedTabs'] = $validationStatusResponse['failedTabs'];
+                            $result['status'] = false;
+                        }
+                    } else {
+                        $result['status'] = true;
+                    }
                 } catch (Exception $e) {
                     $transaction->rollBack();
                     $result['status'] = false;
@@ -187,16 +199,21 @@ class EvaluationController extends ActiveController
     /**
      * @param $candidateId
      */
-    public function saveEvaluationMain($candidateId, $step)
+    public function saveEvaluationMain($candidateId, $step, $submitType, $finalSave = false)
     {
         $evaluation = CandidateEvaluations::find()->where(['user_id' => $candidateId, 'status' => 1])->one();
         if (!$evaluation) {
             $evaluation = new CandidateEvaluations();
             $evaluation->user_id = $candidateId;
         }
-        $evaluation->status = $step == 4 ? 2 : 1;
+        $evaluation->status = ($step == 4 && in_array($submitType, ['finish', 'email'])) ? 2 : 1;
         $evaluation->evaluator_id = Yii::$app->user->identity->id;
-        $evaluation->save();
+        if ($evaluation->status != 2) {
+            $evaluation->save();
+        }
+        if ($finalSave) {
+            $evaluation->save();
+        }
         return $evaluation->evaluation_id;
     }
 
@@ -218,5 +235,35 @@ class EvaluationController extends ActiveController
         }
         $columns = ['user_id', 'evaluation_id', 'question_id', 'rating_value', 'created_at', 'created_by', 'updated_at', 'updated_by'];
         Yii::$app->db->createCommand()->batchInsert(CandidateQuestionsRating::tableName(), $columns, $rows)->execute();
+    }
+
+    /**
+     * @param $candidateId
+     * @param $evaluationId
+     */
+    public function validateEvaluationQuestion($candidateId, $evaluationId)
+    {
+        $result['status'] = false;
+        $ratings = CandidateQuestionsRating::find()->where(['user_id' => $candidateId, 'evaluation_id' => $evaluationId])->asArray()->all();
+        if (!$ratings) {
+            $result['allTabsFailed'] = true;
+            return $result;
+        }
+        $ratings = ArrayHelper::map($ratings, 'question_id', 'rating_value');
+        $ratings = array_filter($ratings, function ($element) {
+            if ($element == 0) {
+                return true;
+            }
+            return false;
+        });
+
+        if (!$ratings) {
+            $result['status'] = true;
+            return $result;
+        }
+        $questions = EvaluationQuestions::find()->select('sub_category_id')->where(['question_id' => array_keys($ratings)])->asArray()->all();
+        $tabs = array_values(array_unique(ArrayHelper::getColumn($questions, 'sub_category_id')));
+        $result['failedTabs'] = $tabs;
+        return $result;
     }
 }
