@@ -9,11 +9,15 @@
 namespace app\modules\v1\controllers;
 
 use app\components\AccessRule;
+use app\components\MailComponent;
+use app\components\ResourceComponent;
 use app\filters\auth\HttpBearerAuth;
+use app\models\CandidateEmails;
 use app\models\CandidateEvaluations;
 use app\models\CandidateQuestionsRating;
 use app\models\EvaluationQuestions;
 use app\models\EvaluationQuestionsSubCategories;
+use app\models\SettingMaster;
 use Mpdf\Tag\A;
 use yii\base\Exception;
 use yii\filters\AccessControl;
@@ -63,6 +67,7 @@ class EvaluationController extends ActiveController
                 'login' => ['post'],
                 'get-candidate-evaluation' => ['post'],
                 'save-evaluations' => ['post'],
+                'send-final-email' => ['post'],
             ],
         ];
 
@@ -96,7 +101,7 @@ class EvaluationController extends ActiveController
             'rules' => [
                 [
                     'allow' => true,
-                    'actions' => ['index', 'view', 'create', 'update', 'delete', 'get-candidate-evaluation', 'save-evaluations'],
+                    'actions' => ['index', 'view', 'create', 'update', 'delete', 'get-candidate-evaluation', 'save-evaluations', 'send-final-email'],
                     // 'roles' => [USER::ROLE_SUPER_ADMIN, USER::ROLE_ADMIN],
                 ]
             ],
@@ -170,11 +175,13 @@ class EvaluationController extends ActiveController
 
                     $evaluationId = $this->saveEvaluationMain($candidateId, $step, $submitType);
                     $this->saveEvaluationQuestions($candidateId, $evaluationId, $questions, $step);
-                    $transaction->commit();
+
                     if (in_array($submitType, ['finish', 'email'])) {
                         $validationStatusResponse = $this->validateEvaluationQuestion($candidateId, $evaluationId);
+
                         if ($validationStatusResponse['status']) {
                             $this->saveEvaluationMain($candidateId, $step, $submitType, true);
+                            $result['status'] = true;
                         } else {
                             $result['validationFailed'] = true;
                             $result['failedTabs'] = $validationStatusResponse['failedTabs'];
@@ -191,6 +198,7 @@ class EvaluationController extends ActiveController
                     $result['message'] = $e->getMessage();
                 }
                 $response->setStatusCode(200);
+                $transaction->commit();
                 return $result;
             }
         } catch (Exception $exception) {
@@ -209,12 +217,13 @@ class EvaluationController extends ActiveController
             $evaluation = new CandidateEvaluations();
             $evaluation->user_id = $candidateId;
         }
-        $evaluation->status = ($step == 4 && in_array($submitType, ['finish', 'email'])) ? 2 : 1;
+        $evaluation->status = 1;
         $evaluation->evaluator_id = Yii::$app->user->identity->id;
         if ($evaluation->status != 2) {
             $evaluation->save();
         }
         if ($finalSave) {
+            $evaluation->status = 2;
             $evaluation->save();
         }
         return $evaluation->evaluation_id;
@@ -229,7 +238,10 @@ class EvaluationController extends ActiveController
     {
         $questionIds = ArrayHelper::getColumn($questions, 'id');
 
-        CandidateQuestionsRating::deleteAll(['user_id' => $candidateId, 'evaluation_id' => $evaluationId, 'question_id' => $questionIds]);
+        if ($questionIds) {
+            CandidateQuestionsRating::deleteAll(['user_id' => $candidateId, 'evaluation_id' => $evaluationId, 'question_id' => $questionIds]);
+        }
+
         $rows = [];
         $date = date('Y-m-d H:i:s');
         $userId = Yii::$app->user->identity->id;
@@ -237,6 +249,7 @@ class EvaluationController extends ActiveController
             $rows[] = [$candidateId, $evaluationId, $question['id'], $question['questionValue'], $date, $userId, $date, $userId];
         }
         $columns = ['user_id', 'evaluation_id', 'question_id', 'rating_value', 'created_at', 'created_by', 'updated_at', 'updated_by'];
+
         Yii::$app->db->createCommand()->batchInsert(CandidateQuestionsRating::tableName(), $columns, $rows)->execute();
     }
 
@@ -247,6 +260,7 @@ class EvaluationController extends ActiveController
     public function validateEvaluationQuestion($candidateId, $evaluationId)
     {
         $result['status'] = false;
+
         $ratings = CandidateQuestionsRating::find()->where(['user_id' => $candidateId, 'evaluation_id' => $evaluationId])->asArray()->all();
         if (!$ratings) {
             $result['allTabsFailed'] = true;
@@ -262,10 +276,6 @@ class EvaluationController extends ActiveController
             return false;
         });
 
-        if (!$ratings) {
-            $result['status'] = true;
-            return $result;
-        }
 
         $questions = EvaluationQuestions::find()->asArray()->all();
 
@@ -288,6 +298,11 @@ class EvaluationController extends ActiveController
 
         $subcategories = array_keys(array_diff_assoc($questionsCount, $evalQuestionsCount));
 
+        if (!$subcategories) {
+            $result['status'] = true;
+            return $result;
+        }
+
         $categories = EvaluationQuestionsSubCategories::find()->joinWith(['categories'])->where(['sub_category_id' => $subcategories])->asArray()->all();
 
         $subcategoryMap = ArrayHelper::getColumn($categories, function ($element) {
@@ -303,5 +318,37 @@ class EvaluationController extends ActiveController
         $result['failedErrorMessage'] = "Please answer all the questions in following sections : " . $categoryNames;
         $result['failedSubTabs'] = $subcategoryMap;
         return $result;
+    }
+
+    public function actionSendFinalEmail()
+    {
+        $response = Yii::$app->response;
+        $request = Yii::$app->request;
+        try {
+            $postInfo = $request->getBodyParams();
+            $return = [];
+            $data['CandidateEmails'] = $postInfo['email'];
+            $email = new CandidateEmails();
+            $email->load($data);
+            $email->user_id = $postInfo['candidateId'];
+            $email->send_to = $postInfo['email']['to'];
+            $email->body = $postInfo['email']['message'];
+            if ($email->save()) {
+                $emailStatus = MailComponent::sendMailToCandidate($email);
+                if (!$emailStatus) {
+                    $return['status'] = false;
+                } else {
+                    $return['status'] = true;
+                }
+            } else {
+                $return['status'] = false;
+            }
+            $response->setStatusCode(200);
+            return $return;
+        } catch (Exception $e) {
+            $response->setStatusCode(422);
+            throw new HttpException(422, $e->getMessage());
+        }
+
     }
 }
