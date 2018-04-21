@@ -31,18 +31,18 @@ class SettingMaster extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['twilio_phone_number', 'account_id','account_auth_token','send_grid_api','default_email_for_outgoing','alerts_notification_days'], 'required'],
+            [['twilio_phone_number', 'account_id', 'account_auth_token', 'send_grid_api', 'default_email_for_outgoing', 'alerts_notification_days'], 'required'],
         ];
     }
 
-  /**
-   *  Returns the settings list
-   * [getList description]
-   * @method getList
-   * @return [type]  [description]
-   */
-    public static function getList($asArray = true)
+    /**
+     *  Returns the settings list
+     * [getList description]
+     * @method getList
+     * @return [type]  [description]
+     */
+    public static function getSetting()
     {
-      return self::find()->where(['setting_status'=>1])->asArray($asArray)->all();
+        return self::findOne(1);
     }
 }

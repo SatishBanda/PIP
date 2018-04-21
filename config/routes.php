@@ -74,6 +74,8 @@ return [
                 'OPTIONS get-candidate-evaluation' => 'options',
                 'POST save-evaluations' => 'save-evaluations',
                 'OPTIONS save-evaluations' => 'options',
+                'POST send-final-email' => 'send-final-email',
+                'OPTIONS send-final-email' => 'options',
             ]
         ],
     ]
