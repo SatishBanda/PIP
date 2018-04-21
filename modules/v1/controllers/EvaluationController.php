@@ -13,6 +13,7 @@ use app\filters\auth\HttpBearerAuth;
 use app\models\CandidateEvaluations;
 use app\models\CandidateQuestionsRating;
 use app\models\EvaluationQuestions;
+use app\models\EvaluationQuestionsSubCategories;
 use Mpdf\Tag\A;
 use yii\base\Exception;
 use yii\filters\AccessControl;
@@ -177,6 +178,8 @@ class EvaluationController extends ActiveController
                         } else {
                             $result['validationFailed'] = true;
                             $result['failedTabs'] = $validationStatusResponse['failedTabs'];
+                            $result['errorMessage'] = $validationStatusResponse['failedErrorMessage'];
+                            $result['failedSubTabs'] = $validationStatusResponse['failedSubTabs'];
                             $result['status'] = false;
                         }
                     } else {
@@ -247,11 +250,13 @@ class EvaluationController extends ActiveController
         $ratings = CandidateQuestionsRating::find()->where(['user_id' => $candidateId, 'evaluation_id' => $evaluationId])->asArray()->all();
         if (!$ratings) {
             $result['allTabsFailed'] = true;
+            $result['failedErrorMessage'] = "Please answer all the questions in following sections : Introduction,Questions,Recommendations,Feedback";
             return $result;
         }
+
         $ratings = ArrayHelper::map($ratings, 'question_id', 'rating_value');
         $ratings = array_filter($ratings, function ($element) {
-            if ($element == 0) {
+            if ($element != 0) {
                 return true;
             }
             return false;
@@ -261,9 +266,42 @@ class EvaluationController extends ActiveController
             $result['status'] = true;
             return $result;
         }
-        $questions = EvaluationQuestions::find()->select('sub_category_id')->where(['question_id' => array_keys($ratings)])->asArray()->all();
-        $tabs = array_values(array_unique(ArrayHelper::getColumn($questions, 'sub_category_id')));
-        $result['failedTabs'] = $tabs;
+
+        $questions = EvaluationQuestions::find()->asArray()->all();
+
+        $questions = ArrayHelper::index($questions, null, 'sub_category_id');
+
+        $questionsCount = [];
+        foreach ($questions as $key => $question) {
+            $questionsCount[$key] = count($question);
+        }
+
+        $evalQuestions = EvaluationQuestions::find()->select('sub_category_id')
+            ->where(['question_id' => array_keys($ratings)])
+            ->asArray()->all();
+
+        $evalQuestions = ArrayHelper::index($evalQuestions, null, 'sub_category_id');
+        $evalQuestionsCount = [];
+        foreach ($evalQuestions as $key => $question) {
+            $evalQuestionsCount[$key] = count($question);
+        }
+
+        $subcategories = array_keys(array_diff_assoc($questionsCount, $evalQuestionsCount));
+
+        $categories = EvaluationQuestionsSubCategories::find()->joinWith(['categories'])->where(['sub_category_id' => $subcategories])->asArray()->all();
+
+        $subcategoryMap = ArrayHelper::getColumn($categories, function ($element) {
+            $ele = [];
+            $ele['sub'] = $element['sub_category_id'];
+            $ele['main'] = $element['category_id'];
+            return $ele;
+        });
+
+        $categoryNames = array_unique(ArrayHelper::getColumn($categories, 'categories.category_name'));
+        $categoryNames = implode(',', $categoryNames);
+        $result['failedTabs'] = $subcategories;
+        $result['failedErrorMessage'] = "Please answer all the questions in following sections : " . $categoryNames;
+        $result['failedSubTabs'] = $subcategoryMap;
         return $result;
     }
 }

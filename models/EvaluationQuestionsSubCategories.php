@@ -29,11 +29,12 @@ class EvaluationQuestionsSubCategories extends \yii\db\ActiveRecord
     {
         return $this->hasOne(User::className(), ['user_id' => 'updated_by']);
     }
+
     /**
      * @return \yii\db\ActiveQuery
      */
-    public function getSubcategories()
+    public function getCategories()
     {
-        return $this->hasMany(EvaluationQuestionsSubCategories::className(), ['category_id' => 'category_id']);
+        return $this->hasOne(EvaluationQuestionsCategories::className(), ['category_id' => 'category_id']);
     }
 }
