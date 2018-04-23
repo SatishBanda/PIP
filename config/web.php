@@ -52,8 +52,8 @@ $config = [
         ],
         'sendGrid' => [
             'class' => 'bryglen\sendgrid\Mailer',
-            'username' => 'optionmatrix.auditbench@gmail.com',
-            'password' => 'AuditBench@2018',
+            'username' => 'XXXXX',
+            'password' => 'XXXXXXXXX',
             //'viewPath' => '@app/views/mail', // your view path here
         ],
         'log' => [
